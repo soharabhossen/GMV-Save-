@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="bn"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GMV Admin</title><meta name="robots" content="noindex">
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@500;700&display=swap" rel="stylesheet">
+<style>body{font-family:'Hind Siliguri',sans-serif;background:#f8fafc}.in{width:100%;border:1px solid #e2e8f0;border-radius:12px;padding:10px;background:#fff;font-size:14px}
+.btn{padding:10px 14px;border-radius:12px;color:#fff;font-weight:700;font-size:13px;background:linear-gradient(135deg,#6366f1,#ec4899)}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:14px}.tab.on{background:#4f46e5;color:#fff}</style></head>
+<body class="max-w-lg mx-auto p-4">
+<div id="login" class="card mt-20 space-y-3">
+  <h1 class="text-xl font-bold">🔐 Admin Login</h1>
+  <input id="pw" type="password" class="in" placeholder="Password">
+  <button class="btn w-full" onclick="login()">Login</button><p id="lerr" class="text-red-500 text-sm"></p>
+</div>
+
+<div id="panel" class="hidden space-y-3">
+  <div class="flex gap-2 text-sm font-bold">
+    <button class="tab on flex-1 py-2 rounded-xl bg-white border" onclick="tab('keys')">API Keys</button>
+    <button class="tab flex-1 py-2 rounded-xl bg-white border" onclick="tab('ads')">Adset</button>
+    <button class="tab flex-1 py-2 rounded-xl bg-white border" onclick="tab('brand')">Command</button>
+  </div>
+  <div id="msg" class="hidden text-sm rounded-xl p-2 bg-emerald-50 text-emerald-700"></div>
+
+  <section id="t-keys" class="space-y-3"></section>
+
+  <section id="t-ads" class="hidden card space-y-3">
+    <label class="flex items-center gap-2 font-bold"><input type="checkbox" id="ad-on"> ডাউনলোডের আগে বিজ্ঞাপন দেখাও</label>
+    <div>কাউন্টডাউন (সেকেন্ড) <input id="ad-sec" type="number" min="1" max="30" class="in mt-1"></div>
+    <div id="ad-list" class="space-y-2"></div>
+    <button class="w-full py-2 border rounded-xl text-sm" onclick="addAd()">+ বিজ্ঞাপন যোগ করুন</button>
+    <button class="btn w-full" onclick="saveAds()">Save Ads</button>
+  </section>
+
+  <section id="t-brand" class="hidden card space-y-3">
+    <div>অ্যাপের নাম <input id="b-name" class="in mt-1"></div>
+    <div>ট্যাগলাইন <input id="b-tag" class="in mt-1"></div>
+    <div>প্রধান রঙ <input id="b-color" type="color" class="in mt-1 h-12"></div>
+    <div>ফন্ট <select id="b-font" class="in mt-1"></select></div>
+    <div id="b-preview" class="text-2xl text-center py-3 border rounded-xl">Preview Text</div>
+    <div>লোগো <input id="b-logo" type="file" accept="image/*" class="in mt-1"><img id="b-img" class="h-14 mt-2 rounded-full hidden"></div>
+    <button class="btn w-full" onclick="saveBrand()">Save Branding</button>
+  </section>
+</div>
+
+<script>
+const $=id=>document.getElementById(id), PL=['facebook','instagram','tiktok','youtube'];
+const FONTS=['Cinzel','Playfair Display','Poppins','Montserrat','Hind Siliguri','Lobster'];
+let T=sessionStorage.getItem('gmv_t')||'', CFG=null, logo='';
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function api(m,u,b){const r=await fetch('/api/admin/'+u,{method:m,headers:{'Content-Type':'application/json',Authorization:'Bearer '+T},body:b?JSON.stringify(b):undefined});
+  const d=await r.json().catch(()=>({})); if(r.status===401){sessionStorage.removeItem('gmv_t');location.reload();} if(!r.ok)throw new Error(d.error||'Error'); return d;}
+function msg(t,ok=true){const m=$('msg');m.textContent=t;m.className='text-sm rounded-xl p-2 '+(ok?'bg-emerald-50 text-emerald-700':'bg-red-50 text-red-600');setTimeout(()=>m.classList.add('hidden'),3500);}
+async function login(){try{const r=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:$('pw').value})});
+  const d=await r.json(); if(!r.ok)throw new Error(d.error); T=d.token; sessionStorage.setItem('gmv_t',T); init();}catch(e){$('lerr').textContent=e.message;}}
+function tab(n){['keys','ads','brand'].forEach((t,i)=>{$('t-'+t).classList.toggle('hidden',t!==n);document.querySelectorAll('.tab')[i].classList.toggle('on',t===n);});}
+
+async function init(){ try{CFG=await api('GET','config');}catch{return;}
+  $('login').classList.add('hidden'); $('panel').classList.remove('hidden');
+  renderKeys(); renderAds(); renderBrand(); }
+
+function renderKeys(){ $('t-keys').innerHTML=PL.map(p=>{const k=CFG.keys[p];return `<div class="card space-y-2">
+  <div class="flex justify-between items-center"><b class="capitalize">${p}</b><span class="text-xs ${k.masked?'text-emerald-600':'text-slate-400'}">${k.masked||'সেট করা নেই'}</span></div>
+  <input id="ep-${p}" class="in" placeholder="API Endpoint URL" value="${esc(k.endpoint)}" ${k.locked?'disabled':''}>
+  <input id="k-${p}" type="password" class="in" placeholder="নতুন API Key (ফাঁকা = অপরিবর্তিত)" ${k.locked?'disabled':''}>
+  <div class="flex gap-2"><button class="btn flex-1" ${k.locked?'disabled style="opacity:.4"':''} onclick="saveKey('${p}')">Save</button>
+  <button class="flex-1 border rounded-xl text-sm font-bold" onclick="lockKey('${p}',${!k.locked})">${k.locked?'🔓 Unlock':'🔒 Lock'}</button></div></div>`;}).join('');}
+async function saveKey(p){try{await api('PUT','keys/'+p,{key:$('k-'+p).value,endpoint:$('ep-'+p).value});msg('Saved');CFG=await api('GET','config');renderKeys();}catch(e){msg(e.message,false);}}
+async function lockKey(p,l){try{await api('PUT','keys/'+p,{locked:l});CFG=await api('GET','config');renderKeys();}catch(e){msg(e.message,false);}}
+
+let ADS=[];
+function renderAds(){ $('ad-on').checked=CFG.ads.enabled; $('ad-sec').value=CFG.ads.seconds; ADS=CFG.ads.links.slice(); drawAds(); }
+function drawAds(){ $('ad-list').innerHTML=ADS.map((a,i)=>`<div class="border rounded-xl p-2 space-y-1">
+  <input class="in" placeholder="শিরোনাম" value="${esc(a.title)}" oninput="ADS[${i}].title=this.value">
+  <input class="in" placeholder="বিজ্ঞাপনের লিঙ্ক https://..." value="${esc(a.url)}" oninput="ADS[${i}].url=this.value">
+  <input class="in" placeholder="ছবির লিঙ্ক (ঐচ্ছিক)" value="${esc(a.image)}" oninput="ADS[${i}].image=this.value">
+  <button class="text-red-500 text-xs" onclick="ADS.splice(${i},1);drawAds()">মুছুন</button></div>`).join(''); }
+function addAd(){ADS.push({title:'',url:'',image:''});drawAds();}
+async function saveAds(){try{await api('PUT','ads',{enabled:$('ad-on').checked,seconds:$('ad-sec').value,links:ADS});msg('Ads saved');}catch(e){msg(e.message,false);}}
+
+function renderBrand(){const b=CFG.brand; $('b-name').value=b.name; $('b-tag').value=b.tagline; $('b-color').value=b.primary; logo=b.logo||'';
+  $('b-font').innerHTML=FONTS.map(f=>`<option ${f===b.font?'selected':''}>${f}</option>`).join('');
+  if(logo){$('b-img').src=logo;$('b-img').classList.remove('hidden');} prev(); }
+function prev(){const f=$('b-font').value; if(!document.getElementById('fl-'+f)){const l=document.createElement('link');l.id='fl-'+f;l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family='+f.replace(/ /g,'+')+'&display=swap';document.head.appendChild(l);}
+  const p=$('b-preview');p.style.fontFamily="'"+f+"',serif";p.style.color=$('b-color').value;p.textContent=$('b-name').value||'Preview';}
+['b-font','b-color','b-name'].forEach(id=>document.addEventListener('input',e=>{if(e.target.id===id)prev();}));
+$('b-logo').onchange=e=>{const f=e.target.files[0];if(!f)return;if(f.size>1.8e6)return msg('লোগো ১.৮MB এর কম হতে হবে',false);
+  const r=new FileReader();r.onload=()=>{logo=r.result;$('b-img').src=logo;$('b-img').classList.remove('hidden');};r.readAsDataURL(f);};
+async function saveBrand(){try{await api('PUT','brand',{name:$('b-name').value,tagline:$('b-tag').value,primary:$('b-color').value,font:$('b-font').value,logo});msg('Branding saved');}catch(e){msg(e.message,false);}}
+
+if(T)init();
+</script></body></html>
