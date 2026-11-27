@@ -33,7 +33,7 @@ function auth(req, res, next) {
 let fails = 0, lockUntil = 0;
 
 const app = express();
-app.use(express.json({ limit: '3mb' }));
+app.use(express.json({ limit: '3mb' }));app.use(express.static(path.join(__dirname, 'public')));
 
 // ---- public ----
 app.get('/api/config', (req, res) => { const c = readCfg();
@@ -91,5 +91,5 @@ app.put('/api/admin/brand', auth, (req, res) => { const c = readCfg(), b = req.b
     font: ['Cinzel', 'Playfair Display', 'Poppins', 'Montserrat', 'Hind Siliguri', 'Lobster'].includes(b.font) ? b.font : 'Cinzel' };
   writeCfg(c); res.json({ ok: true }); });
 
-app.use(express.static(path.join(__dirname, 'public')));
+
 app.listen(PORT, () => console.log('GMV Save running on :' + PORT));
