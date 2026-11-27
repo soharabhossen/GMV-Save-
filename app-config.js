@@ -1,7 +1,7 @@
 // index.html-এ </body> এর আগে যোগ করুন: <script src="app-config.js"></script>
 (async function () {
   let cfg;
-  try { cfg = await (await fetch('/api/config')).json(); } catch (e) { return; }
+  try { cfg = await (await fetch/https://gmvsave.onrender.com')).json(); } catch (e) { return; }
   const b = cfg.brand || {};
 
   // ---- branding ----
